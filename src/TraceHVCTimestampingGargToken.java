@@ -1,54 +1,47 @@
 //package com.tutorialspoint.xml;
-
 import java.io.File;
 import java.io.FileWriter;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
-
 import org.xml.sax.Attributes;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.DefaultHandler;
-
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.HashSet;
-
 import java.util.Vector;
 import java.util.Random;
-
 public class TraceHVCTimestampingGargToken
 {
     //static int highest_C_seensofar=0;
     static int snapshotcount=0;
     static String inpfilename="";
+    static String outputLocation = "";
     static int debugmode=0;
     static int mode=0;
     public static void main(String[] args)
     {
         try
         {
+            if(args.length < 4) {
+                System.out.println("Expected number of arguments: 4. Provided "+args.length);
+                System.exit(0);
+            }
             debugmode = Integer.parseInt(args[0]);
             mode=Integer.parseInt(args[1]); //if 2-different-msg-distr-mode, anything else is normal msg distribution mode..
-            if(mode==2)
-            {
+            /*
+            if(mode==2) {
                 System.out.println("Different message distribution mode");
-            }
-            else if(mode==1)
-            {
+            } else if(mode==1) {
                 System.out.println("Intra group message distribution mode");
-            }
-            else
-            {
+            } else {
                 System.out.println("Normal message distribution mode");
-            }
-            //File inputFile = new File("../print_traces_forpredicate_detection_xml_singleboolvariable_x/predicate_a0.010000_e10_l0.100000_d100_v10_run0.xml");
-            //inpfilename="predicate_a0.010000_e1000_l0.010000_d100_v10_run0_100000runs_1.xml";
-            inpfilename="../first2000_predicate_a0.010000_e100_l0.100000_d10_v1_run0.xml";
-            //inpfilename="predicate_a0.100000_e100_l1.000000_d10_v1_run0.xml";
-            //File inputFile = new File("predicate_a0.010000_e1000_l0.010000_d100_v10_run0_100000runs_1.xml");
+            }*/
+            inpfilename=args[2];
+            outputLocation = args[3];
             File inputFile = new File(inpfilename);
             SAXParserFactory factory = SAXParserFactory.newInstance();
             SAXParser saxParser = factory.newSAXParser();
@@ -71,34 +64,24 @@ class UserHandler extends DefaultHandler
     boolean bstart_time=false;
     boolean bend_time=false;
     boolean bmisc=false;
-
     int proc_id=-1;//variable to remember process id
-
     int sender_time=-1;// variable to remember sender time for message RECEIVE
     int senderid=-1;// variable to remember sender id for message RECEIVE
-
     SysAtHand sysathand=new SysAtHand();
-
     Map<Integer, Process> mapofprocesses = new HashMap<Integer, Process>();//map of processes with process id as the key and Process instance as value
-
-    Token token;
-
     Vector<Double> rcv_probab; //declared but will be defined only if in "different-msg-distr-mode"
-
-    int previous_window=0;
-
+    int previous_window=-1;
     Set<String> variableNameSet = new HashSet<String>();
-
-    //variables for printing z3 constraints for intervals
-    String intervalConstraint="";
-    int bracescount=0;
-
     BufferedWriter bw1=null;
     BufferedWriter bw2=null;
-    String nwfolder=TraceHVCTimestampingGargToken.inpfilename.substring(0, TraceHVCTimestampingGargToken.inpfilename.lastIndexOf('.')); //input file name without file extension
+    //setting new-folder's name using the input trace-file's name
+    String folderName = TraceHVCTimestampingGargToken.inpfilename.substring(TraceHVCTimestampingGargToken.inpfilename.lastIndexOf('/')+1, TraceHVCTimestampingGargToken.inpfilename.lastIndexOf(".xml"));
+    String nwfolder=TraceHVCTimestampingGargToken.outputLocation+"\\"+folderName; //input file name without file extension
+    //file containing all hvc snapshots
     String snapshot_outfile=nwfolder+"\\snapshots_hvc_msgmode"+TraceHVCTimestampingGargToken.mode+".txt";
+    //file containing only snapshots that were counted
     String snapshot_counted_outfile=nwfolder+"\\snapshots_counted_hvc"+TraceHVCTimestampingGargToken.mode+".txt";
-
+    String tokens_file = nwfolder+"\\Tokens_hvc.txt";
     @Override
     public void startElement(String uri, String localName, String qName, Attributes attributes) throws SAXException
     {
@@ -130,7 +113,6 @@ class UserHandler extends DefaultHandler
                 }
                 Process proc = new Process(i,freshhvc,0);
                 mapofprocesses.put(i,proc);
-
                 if((TraceHVCTimestampingGargToken.mode==1)||(TraceHVCTimestampingGargToken.mode==2))
                 {
                     if(i<nproc/2)
@@ -165,7 +147,6 @@ class UserHandler extends DefaultHandler
                     }
                 }
             }
-            token=new Token(nproc);
         }
         else if (qName.equalsIgnoreCase("sender_time"))
         {
@@ -204,151 +185,20 @@ class UserHandler extends DefaultHandler
             String old_value = attributes.getValue("old_value");
             if(value.equals("true"))
             {
-                try {
-                    //System.out.println("true interval at "+proc_id);
-                    Process proc= mapofprocesses.get(proc_id);
-                    Vector<Integer> oldhvc=new Vector<Integer>(sysathand.GetNumberOfProcesses());
-                    Vector<Integer> currenthvc=new Vector<Integer>(sysathand.GetNumberOfProcesses());
-                    for(int huj=0;huj<sysathand.GetNumberOfProcesses();huj++)
-                    {
-                        oldhvc.add(proc.getOldHvc().get(huj));
-                    }
-                    for(int pr=0;pr<sysathand.GetNumberOfProcesses();pr++)
-                    {
-                        currenthvc.add(proc.getHvc().get(pr));
-                    }
-                    token=proc.newCandidateOccurance(token, oldhvc, currenthvc,proc.getOldPt(),proc.getPt(),true,sysathand.GetEpsilon());
-                    mapofprocesses.put(proc_id,proc);
-                    if((token.getCandidateAt(proc_id).getcolor()=="green") && (token.getTokenOwner()==proc_id))//token is green at procid
-                    {
-                        int k=0;
-                        boolean found=true;
-                        while(k<sysathand.GetNumberOfProcesses())//loop through token
-                        {
-                            if(k!=proc_id)
-                            {
-                                if(token.getCandidateAt(k).getcolor()=="red")
-                                {
-                                    //pass token to a process with red color i.e. set token owner id to that process
-                                    token.setTokenOwner(k);
-                                    k=sysathand.GetNumberOfProcesses();
-                                    found=false;
-                                }
-                            }
-                            k++;
-                        }
-                        //if all other processes have green color then
-                        if(found)
-                        {
-                            //report detection
-                            //System.out.println("Predicate Satisfied");
-                            if(TraceHVCTimestampingGargToken.snapshotcount==0)//for first predicate satisfaction detected-clear snapshot file if one exists
-                            {
-                                //Creating all necessary files
-                                File ifilename = new File(snapshot_outfile);
-                                ifilename.getParentFile().mkdirs(); //create all necessary parent directories
-                                bw1= new BufferedWriter(new FileWriter(ifilename));//will cause the file-cleanup to start with-because you are opening file in default write mode instead of append
-                                File ifilename1 = new File(snapshot_counted_outfile);
-                                ifilename1.getParentFile().mkdirs(); //create all necessary parent directories
-                                bw2= new BufferedWriter(new FileWriter(ifilename1));//will cause the file-cleanup to start with-because you are opening file in default write mode instead of append
-                            }
-                            //report overlap
-                            if(TraceHVCTimestampingGargToken.debugmode==1)
-                            {
-                                //JUST PRINTING FOR DEBUGGING
-                                BufferedWriter candbw1= new BufferedWriter(new FileWriter("Tokens_hvc.txt", true));//true for append
-                                candbw1.append("Accepted.\n");
-                                candbw1.close();
-                            }
-                            boolean markifcounted=false;
-                            //compute the current cut's window based on epsilon
-                            int current_cut_window=token.getWindow(sysathand.GetEpsilon());
-                            if((TraceHVCTimestampingGargToken.snapshotcount==0)||(current_cut_window>previous_window))
-                            {
-                                TraceHVCTimestampingGargToken.snapshotcount++;
-                                previous_window=current_cut_window;
-
-                                markifcounted=true;
-                            }
-                            if(markifcounted)
-                            {
-                                bw2= new BufferedWriter(new FileWriter(snapshot_counted_outfile, true));//true for append
-                                bw2.write("At Process"+proc_id+" Snapshot No:"+TraceHVCTimestampingGargToken.snapshotcount+"-->");
-                                for(int i=0;i<sysathand.GetNumberOfProcesses();i++)//loop through token entries
-                                {
-                                    Candidate tempCand4=token.getCandidateAt(i);
-                                    Vector<Integer> sthvc=tempCand4.getstart_hvc();
-                                    Vector<Integer> endhvc=tempCand4.getend_hvc();
-                                    bw2.write("[P"+i+":<");
-                                    for(int b=0;b<sthvc.size();b++)
-                                    {
-                                        bw2.write(sthvc.get(b)+",");
-                                    }
-                                    bw2.write("> - <");
-                                    for(int b=0;b<endhvc.size();b++)
-                                    {
-                                        bw2.write(endhvc.get(b)+",");
-                                    }
-                                    bw2.write("><pt:"+tempCand4.getstart_pt()+" - "+tempCand4.getend_pt()+">]\n");
-                                }
-                                //bw2.write("\n");
-                                bw2.newLine();
-                            }
-                            //writing to all-snapshot file
-                            bw1= new BufferedWriter(new FileWriter(snapshot_outfile, true));//true for append
-                            bw1.write("At Process"+proc_id+" Snapshot No:"+TraceHVCTimestampingGargToken.snapshotcount+"-->");
-                            for(int i=0;i<sysathand.GetNumberOfProcesses();i++)//loop through token entries
-                            {
-                                Candidate tempCand4=token.getCandidateAt(i);
-                                Vector<Integer> sthvc=tempCand4.getstart_hvc();
-                                Vector<Integer> endhvc=tempCand4.getend_hvc();
-                                bw1.write("[P"+i+":<");
-                                for(int b=0;b<sthvc.size();b++)
-                                {
-                                    bw1.write(sthvc.get(b)+",");
-                                }
-                                bw1.write("> - <");
-                                for(int b=0;b<endhvc.size();b++)
-                                {
-                                    bw1.write(endhvc.get(b)+",");
-                                }
-                                bw1.write("><pt:"+tempCand4.getstart_pt()+" - "+tempCand4.getend_pt()+">]\n");
-                            }
-                            if(markifcounted)
-                            {
-                                bw1.write(" Was Counted");
-                                markifcounted=false;
-                            }
-                            //bw1.write("\n");
-                            bw1.newLine();
-                            //clear token
-                            token=new Token(sysathand.GetNumberOfProcesses());
-                        }//end of found/reported pred satisfaction
-                    }
-                    else//not token owner-token was handed over to another process (withing missing representative Or red candidate representative) or I(procid) don't have the right candidate yet-red
-                    {//keep token at the current owner
-                    }
+                //System.out.println("true interval at "+proc_id);
+                Process proc= mapofprocesses.get(proc_id);
+                Vector<Integer> oldhvc=new Vector<Integer>(sysathand.GetNumberOfProcesses());
+                Vector<Integer> currenthvc=new Vector<Integer>(sysathand.GetNumberOfProcesses());
+                for(int huj=0;huj<sysathand.GetNumberOfProcesses();huj++)
+                {
+                    oldhvc.add(proc.getOldHvc().get(huj));
                 }
-                catch (IOException ioe) {
-                    ioe.printStackTrace();
+                for(int pr=0;pr<sysathand.GetNumberOfProcesses();pr++)
+                {
+                    currenthvc.add(proc.getHvc().get(pr));
                 }
-                finally {
-                    // always close the file
-                    if (bw1 != null)
-                        try {
-                            bw1.close();
-                        }
-                        catch (IOException ioe1) {
-                            ioe1.printStackTrace();
-                        }
-                    if (bw2 != null)
-                        try {
-                            bw2.close();
-                        }
-                        catch (IOException ioe2) {
-                            ioe2.printStackTrace();
-                        }
-                }
+                proc.newCandidateOccurance(oldhvc, currenthvc,proc.getOldPt(),proc.getPt());
+                mapofprocesses.put(proc_id,proc);
             }
         }
         else if (qName.equalsIgnoreCase("misc"))
@@ -376,108 +226,9 @@ class UserHandler extends DefaultHandler
         }
         else if(qName.equalsIgnoreCase("system_run"))
         {
-            //until you run out of candidates for some process - let say process 0
-            int proc_id=0;
-            boolean nomorecand=false;
-            try {
-                while (!nomorecand) {
-                    Process proc = mapofprocesses.get(proc_id);
-                    Vector<Integer> oldhvc = new Vector<Integer>(sysathand.GetNumberOfProcesses());
-                    Vector<Integer> currenthvc = new Vector<Integer>(sysathand.GetNumberOfProcesses());
-                    for (int j = 0; j < sysathand.GetNumberOfProcesses(); j++) {
-                        oldhvc.add(proc.getOldHvc().get(j));
-                    }
-                    for (int pr = 0; pr < sysathand.GetNumberOfProcesses(); pr++) {
-                        currenthvc.add(proc.getHvc().get(pr));
-                    }
-                    //just invoking function to handle remaining unprocessed intervals
-                    token = proc.newCandidateOccurance(token, oldhvc, currenthvc, proc.getOldPt(), proc.getPt(), false, sysathand.GetEpsilon());//but don't push a candidate-pop and set a candidate if no current representative
-                    mapofprocesses.put(proc_id, proc);
-                    if ((token.getCandidateAt(proc_id).getcolor() == "green") && (token.getTokenOwner() == proc_id))//token is green at procid
-                    {
-                        int k = 0;
-                        boolean found = true;
-                        while (k < sysathand.GetNumberOfProcesses())//loop through token
-                        {
-                            if (k != proc_id) {
-                                if (token.getCandidateAt(k).getcolor() == "red") {
-                                    //pass token to a process with red color i.e. set token owner id to that process
-                                    token.setTokenOwner(k);
-                                    k = sysathand.GetNumberOfProcesses();
-                                    found = false;
-                                }
-                            }
-                            k++;
-                        }
-                        //if all other processes have green color then
-                        if (found) {
-                            //report detection
-                            //System.out.println("Predicate Satisfied");
-                            //report overlap
-                            if (TraceHVCTimestampingGargToken.debugmode == 1) {
-                                //JUST PRINTING FOR DEBUGGING
-                                BufferedWriter candbw1 = new BufferedWriter(new FileWriter("Tokens_hvc.txt", true));//true for append
-                                candbw1.append("Accepted.\n");
-                                candbw1.close();
-                            }
-                            boolean markifcounted = false;
-                            //compute the current cut's window based on epsilon
-                            int current_cut_window = token.getWindow(sysathand.GetEpsilon());
-                            if ((TraceHVCTimestampingGargToken.snapshotcount == 0) || (current_cut_window > previous_window)) {
-                                TraceHVCTimestampingGargToken.snapshotcount++;
-                                previous_window = current_cut_window;
-
-                                markifcounted = true;
-                            }
-                            bw1 = new BufferedWriter(new FileWriter(snapshot_outfile, true));//true for append
-                            bw1.write("At Process" + proc_id + " Snapshot No:" + TraceHVCTimestampingGargToken.snapshotcount + "-->");
-                            for (int i = 0; i < sysathand.GetNumberOfProcesses(); i++)//loop through token entries
-                            {
-                                Candidate tempCand4 = token.getCandidateAt(i);
-                                Vector<Integer> sthvc = tempCand4.getstart_hvc();
-                                Vector<Integer> endhvc = tempCand4.getend_hvc();
-                                bw1.write("[P" + i + ":<");
-                                for (int b = 0; b < sthvc.size(); b++) {
-                                    bw1.write(sthvc.get(b) + ",");
-                                }
-                                bw1.write("> - <");
-                                for (int b = 0; b < endhvc.size(); b++) {
-                                    bw1.write(endhvc.get(b) + ",");
-                                }
-                                bw1.write("><pt:" + tempCand4.getstart_pt() + " - " + tempCand4.getend_pt() + ">]\n");
-                            }
-                            if (markifcounted) {
-                                bw1.write(" Was Counted");
-                                markifcounted = false;
-                            }
-                            //bw1.write("\n");
-                            bw1.newLine();
-                            //clear token
-                            token = new Token(sysathand.GetNumberOfProcesses());
-                        }//end of found/reported pred satisfaction
-                    } else//not token owner-token was handed over to another process (withing missing representative Or red candidate representative) or I(procid) don't have the right candidate yet-red
-                    {
-                        if (token.getCandidateAt(proc_id).getcolor() == "red") {
-                            nomorecand = true;
-                        }
-                    }
-                    //keep token at the new owner
-                    proc_id = token.getTokenOwner();
-                }
-            }catch (Exception e) {
-                e.printStackTrace();
-            }finally {
-                // always close the file
-                if (bw1 != null)
-                    try {
-                        bw1.close();
-                    } catch (IOException ioe2) {
-                        ioe2.printStackTrace();
-                    }
-            }
+            processHVCCandidates(mapofprocesses);
         }
     }
-
     @Override
     public void characters(char ch[], int start, int length) throws SAXException
     {
@@ -534,7 +285,6 @@ class UserHandler extends DefaultHandler
             {
                 toss=true; // every process receives every message from any other process
             }
-
             if((proc_id!=senderid) && (toss))//based on senderid and on receiver-probability--- if in different msg distribution mode
             {
                 //get sender l,c by popping sender's dequeue
@@ -554,8 +304,13 @@ class UserHandler extends DefaultHandler
                 Vector<Integer> updatedhvc=new Vector<Integer>(sysathand.GetNumberOfProcesses());//need separate vectors because they behave like objects
                 for(int pr=0; pr<sysathand.GetNumberOfProcesses();pr++)
                 {
-                    //updatedhvc.set(pr,Math.max(correspSendHVC.getHvc().get(pr),proc.getHvc().get(pr)));
-                    updatedhvc.add(Math.max(correspSendHVC.getHvc().get(pr),proc.getHvc().get(pr)));
+                    if(pr==proc_id)
+                    {
+                        //updatedhvc.set(id,(updatedhvc.get(id))+1);
+                        updatedhvc.add((proc.getHvc().get(proc_id))+1);
+                    } else {
+                        updatedhvc.add(Math.max(correspSendHVC.getHvc().get(pr),proc.getHvc().get(pr)));
+                    }
                 }
                 proc.setHvc(updatedhvc);
                 proc.setPt(receiver_time);
@@ -568,9 +323,10 @@ class UserHandler extends DefaultHandler
                 {
                     // to pop corresponding sender info from its queue
                     Process senderproc= mapofprocesses.get(senderid);//get sender hvc by popping sender's dequeue
-                    MessageSendStruct correspSendHVC = senderproc.getHVCfromQueue(sender_time);
+                    MessageSendStruct correspSendHVC = senderproc.getHVCfromQueue(sender_time); //pop it but ignore it
+                    mapofprocesses.put(senderid,senderproc);
                 }
-                proc.updateClock(receiver_time,false,sysathand.GetNumberOfProcesses());
+                proc.updateClock(receiver_time,false,sysathand.GetNumberOfProcesses());//treat like local event if toss is false
                 mapofprocesses.put(proc_id,proc);//update the process instance in the map corresponding the key-process id
             }
             bmreceiver_time = false;
@@ -589,18 +345,119 @@ class UserHandler extends DefaultHandler
             //System.out.println("Interval end time: " + end_time);
             Process proc= mapofprocesses.get(proc_id);
             //no need to update clocks if bmisc because the clock was already updated at message send/recieve which actually caused this interval end point
-            if(!bmisc)
+            //if(!bmisc)
             {
                 proc.updateClock(end_time,false,sysathand.GetNumberOfProcesses());
                 mapofprocesses.put(proc_id,proc);
             }
             bmisc = false;
-
             bend_time = false;
         }
         else if (bmisc)
         {
             //System.out.println("misc: " + new String(ch, start, length));
+        }
+    }
+    void processHVCCandidates(Map<Integer, Process> mapofprocesses){
+        //create needed parent directory/clean necessary output files
+        filePrep(snapshot_outfile);
+        filePrep(snapshot_counted_outfile);
+        filePrep(tokens_file);
+        Token token=new Token(sysathand.GetNumberOfProcesses());
+        token.setTokenOwner(0);
+        boolean noMoreCandidates=false;
+        //until you run out of candidates for some process
+        while (!noMoreCandidates) {
+            int tokOwner = token.getTokenOwner();
+            //check if token owner has a valid non-dummy candidate representative -- first iteration of the loop
+            if (!token.representativeIsSetAt(tokOwner)){
+                Process proc = mapofprocesses.get(tokOwner);
+                Candidate nextCand = proc.getFirstCandidate();
+                mapofprocesses.put(tokOwner,proc);//update map to reflect the change done to the process
+                if (nextCand != null) {
+                    //sets the next candidate as representative
+                    token.representativeSetCandidateAt(tokOwner, nextCand);
+                } else { //queue is empty
+                    noMoreCandidates = true;
+                    //System.out.println("No more candidates at "+tokOwner);
+                    continue;
+                }
+            }
+            //go ahead and evaluate token only if it is complete
+            int passItOnTo = token.isIncompleteAt();
+            if (passItOnTo != -1) { //indicates token is complete
+                token.setTokenOwner(passItOnTo);
+                continue;
+            }
+            //if token if complete
+            //evaluate if representative of the current token-owner-process is concurrent with all others
+            boolean valid = token.computeIfValidCandidate(tokOwner, sysathand.GetEpsilon());
+            //if color is still red for the token-owner's representative - in this case ComputeIfOverlap would
+            //have returned false without changing the token owner--so set the next candidate in the queue of
+            //the owner process as the new representative and continue the while loop i.e. evaluate the token
+            //with the new representative in the next iteration of the loop
+            if(!valid && tokOwner == token.ownerId){
+                Process proc = mapofprocesses.get(tokOwner);
+                Candidate nextCand = proc.getFirstCandidate();
+                mapofprocesses.put(tokOwner,proc);//update map to reflect the change done to the process
+                if (nextCand != null) {
+                    //sets the next candidate as representative
+                    token.representativeSetCandidateAt(tokOwner, nextCand);
+                } else { //queue is empty
+                    noMoreCandidates = true;
+                    System.out.println("No more candidates at "+tokOwner);
+                    continue;
+                }
+            } else if (!valid && tokOwner != token.ownerId) {
+                //valid was set to false due to an invalid candidate representative for a non-token-owner process
+                //owner was already set to that process in computeIfValidCandidate
+                //pass on the token to that process
+            } else if (valid && token.getFirstRedProcess()!=-1) {
+                //current candidate representative for the token process is valid but the token evaluation is
+                //not complete yet - should evaluate every other process' candidate
+                token.setTokenOwner(token.getFirstRedProcess());//pass on the token to appropriate owner
+            } else {//token was evaluated for every pair of candidates and is completely green
+                if (TraceHVCTimestampingGargToken.debugmode == 1) {
+                    token.markAs(tokens_file, "Accepted");
+                }
+                //printing it to all snapshots file
+                token.print(snapshot_outfile);
+                //counting snapshots only if they are more than epsilon apart from each other
+                int temp_wind = previous_window;
+                previous_window = count(token, previous_window);
+                if (temp_wind != previous_window) {
+                    //System.out.println("New window:"+previous_window);
+                    //printed to counted-snapshots file
+                    token.markAs(snapshot_counted_outfile," Snapshot No:"+TraceHVCTimestampingGargToken.snapshotcount+"-->");
+                    token.print(snapshot_counted_outfile);
+                    token.markAs(snapshot_outfile, " Was Counted");
+                    //clear token
+                    token = new Token(sysathand.GetNumberOfProcesses());//default owner is process 0
+                } else {
+                    //make the process with the smallest start pt red in the token
+                    int newOwner = token.computesmalleststart().get(1);
+                    token.clearCandidateAt(newOwner,sysathand.GetNumberOfProcesses());
+                    token.setTokenOwner(newOwner);//returns the process with smallest start PT
+                }
+            }
+        }
+    }
+    int count(Token token, int previous_window){
+        //compute the current cut's window based on epsilon
+        int current_cut_window = token.getWindow(sysathand.GetEpsilon());
+        if ((TraceHVCTimestampingGargToken.snapshotcount == 0) || (current_cut_window > previous_window)) {
+            TraceHVCTimestampingGargToken.snapshotcount++;
+            previous_window = current_cut_window;
+        }
+        return previous_window;
+    }
+    void filePrep(String filename){
+        try {
+            File ifilename = new File(filename);
+            ifilename.getParentFile().mkdirs(); //create all necessary parent directories
+            bw1= new BufferedWriter(new FileWriter(ifilename));//will cause the file-cleanup to start with-because you are opening file in default write mode instead of append
+        } catch (IOException ioe) {
+            ioe.printStackTrace();
         }
     }
 }

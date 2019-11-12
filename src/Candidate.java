@@ -72,12 +72,8 @@ class Candidate
     {
         return color;
     }
-    int happenedBefore(Candidate othercand)
+    int happenedBefore(Vector<Integer> mystarthvc, Vector<Integer> otherstarthvc)
     {
-        Vector<Integer> otherstarthvc=othercand.getstart_hvc();
-        //Vector<Integer> otherendhvc=othercand.getend_hvc();
-        Vector<Integer> mystarthvc=start_hvc;
-        //Vector<Integer> myendhvc=end_hvc;
         boolean ihappenedbeforeother=false;
         boolean otherhappenedbeforeme=false;
         for(int i=0;i<start_hvc.size();i++)
@@ -93,7 +89,6 @@ class Candidate
             else
             {}
         }
-
         //if happened before
         if(ihappenedbeforeother && !otherhappenedbeforeme)
         {
@@ -109,23 +104,32 @@ class Candidate
             return 0;
         }
     }
-    boolean epsBehind(Candidate othercand, int epsi)
-    {
+    int getLargerStartPT(Candidate othercand){
+        return Math.max(othercand.getstart_pt(),getstart_pt());
+    }
+    int getSmallerEndPT(Candidate othercand){
+        return Math.min(othercand.getend_pt(),getend_pt());
+    }
+    int happensBefore(Candidate othercand, int epsi){
+        Vector<Integer> otherstarthvc=othercand.getstart_hvc();
+        //Vector<Integer> otherendhvc=othercand.getend_hvc();
+        Vector<Integer> mystarthvc=start_hvc;
         int startptofothercand=othercand.getstart_pt();
-        if(getend_pt()<=startptofothercand)
-        {
-            if(startptofothercand-getend_pt()<=epsi)//my(current candidate's) endpt is behind other candidates start_pt but within epsilon
-            {
-                return false;
-            }
-            else //my(current candidate's) endpt is far behind other candidates start_pt
-            {
-                return true;
-            }
+        int myendpt = getend_pt();
+        int hb = 0;
+        int causality = happenedBefore(mystarthvc,otherstarthvc);
+        //compute distance in terms of physical time
+        int largerStartPT = getLargerStartPT(othercand);
+        int smallerEndPT = getSmallerEndPT(othercand);
+        int ptDistance=0;
+        if ((largerStartPT == othercand.getstart_pt() && smallerEndPT== getend_pt()) ||(largerStartPT == getstart_pt() && smallerEndPT== othercand.getend_pt())){
+            ptDistance = largerStartPT - smallerEndPT;
+        } //else there is an overlap in physical time of the intervals - one candidate interval is completely overlapped by the other
+        if((causality ==1) ||((ptDistance > epsi) && (smallerEndPT==getend_pt()))){ //negative ptDistance indicates an overlap
+            hb = 1;
+        } else if ((causality == -1) ||((ptDistance > epsi) && (smallerEndPT==othercand.getend_pt()))){
+            hb = -1;
         }
-        else//my(current candidate's) endpt is ahead other candidates start_pt
-        {
-            return false;
-        }
+        return hb;
     }
 }
