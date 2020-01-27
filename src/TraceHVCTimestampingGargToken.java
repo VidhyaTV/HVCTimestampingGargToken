@@ -197,8 +197,13 @@ class UserHandler extends DefaultHandler
                 {
                     currenthvc.add(proc.getHvc().get(pr));
                 }
-                proc.newCandidateOccurance(oldhvc, currenthvc,proc.getOldPt(),proc.getPt());
-                mapofprocesses.put(proc_id,proc);
+                if(proc.getAcceptInterval()==0){
+                    proc.newCandidateOccurance(oldhvc, currenthvc,proc.getOldPt(),proc.getPt());
+                    mapofprocesses.put(proc_id,proc);
+                    proc.setAcceptInterval(1);
+                } else {
+                    proc.setAcceptInterval(0);
+                }
             }
         }
         else if (qName.equalsIgnoreCase("misc"))
@@ -345,7 +350,7 @@ class UserHandler extends DefaultHandler
             //System.out.println("Interval end time: " + end_time);
             Process proc= mapofprocesses.get(proc_id);
             //no need to update clocks if bmisc because the clock was already updated at message send/recieve which actually caused this interval end point
-            //if(!bmisc)
+            //if(!bmisc)//uncommented to create a new timestamp for the next interval's start - to allow choosing the next interval as part of valid snapshot
             {
                 proc.updateClock(end_time,false,sysathand.GetNumberOfProcesses());
                 mapofprocesses.put(proc_id,proc);

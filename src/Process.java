@@ -19,6 +19,8 @@ class Process
     int msg_counter;
     //boolean reported_interval_already;//variable to track first ever interval reported at a process
     int lastsendorrecorlocevntpt;//variable to check if multiple events -msg send/rcv or local event happened at the same instant --used to update prev(Old) pt,hvc only when the first event occurs at a specific physical time
+    //variable to help ignore true intervals at a specific frequency
+    int acceptInterval;
     Process(int unique_id, Vector<Integer> proc_hvc, int phytime)
     {
         id=unique_id;
@@ -31,6 +33,7 @@ class Process
         candQueue= new ArrayDeque<Candidate>();
         //reported_interval_already=false;
         lastsendorrecorlocevntpt=-1;
+        acceptInterval=0;
     }
     void setId(int passed_id){id=passed_id;}
     void setHvc(Vector<Integer> passed_hvc){hvc=passed_hvc;}
@@ -38,6 +41,8 @@ class Process
     void setlastsendorrecorlocevntpt(int sendreclocventpt){lastsendorrecorlocevntpt=sendreclocventpt;}
     void setOldHvc(Vector<Integer> passed_hvc){prev_hvc=passed_hvc;}
     void setOldPt(int passed_pt){prev_pt=passed_pt;}
+    void setAcceptInterval(int value){acceptInterval=value;}
+    int getAcceptInterval(){return acceptInterval;}
     int getId(){return id;}
     Vector<Integer> getHvc(){return hvc;}
     int getPt(){return pt;}
