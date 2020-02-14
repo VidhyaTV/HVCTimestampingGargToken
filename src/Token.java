@@ -130,7 +130,9 @@ class Token
         }
         if(TraceHVCTimestampingGargToken.debugmode==1)
         {
-            String tokens_file = TraceHVCTimestampingGargToken.inpfilename.substring(0, TraceHVCTimestampingGargToken.inpfilename.lastIndexOf('.'))+"\\Tokens_hvc.txt";
+            String folderName = TraceHVCTimestampingGargToken.inpfilename.substring(TraceHVCTimestampingGargToken.inpfilename.lastIndexOf('/')+1, TraceHVCTimestampingGargToken.inpfilename.lastIndexOf(".xml"));
+            String nwFolder=TraceHVCTimestampingGargToken.outputLocation+"\\"+folderName; //input file name without file extension
+            String tokens_file = nwFolder+"\\Tokens_hvc.txt";
             //JUST PRINTING FOR DEBUGGING
             print(tokens_file);
         }
@@ -189,15 +191,15 @@ class Token
                 Candidate tempCand4 = getCandidateAt(i);
                 Vector<Integer> sthvc = tempCand4.getstart_hvc();
                 Vector<Integer> endhvc = tempCand4.getend_hvc();
-                candbw1.write("[P" + i + ":<");
+                candbw1.append("[P" + i + ":<");
                 for (int b = 0; b < sthvc.size(); b++) {
-                    candbw1.write(sthvc.get(b) + ",");
+                    candbw1.append(sthvc.get(b) + ",");
                 }
-                candbw1.write("> - <");
+                candbw1.append("> - <");
                 for (int b = 0; b < endhvc.size(); b++) {
-                    candbw1.write(endhvc.get(b) + ",");
+                    candbw1.append(endhvc.get(b) + ",");
                 }
-                candbw1.write("><pt:" + tempCand4.getstart_pt() + " - " + tempCand4.getend_pt() + ">];"+(token.get(i)).getcolor()+"\n");
+                candbw1.append("><pt:" + tempCand4.getstart_pt() + " - " + tempCand4.getend_pt() + ">];"+(token.get(i)).getcolor()+"\n");
             }
             candbw1.close();
         }
