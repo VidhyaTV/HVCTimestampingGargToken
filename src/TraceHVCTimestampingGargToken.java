@@ -1,18 +1,24 @@
 //package com.tutorialspoint.xml;
+
 import java.io.File;
 import java.io.FileWriter;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
+
 import org.xml.sax.Attributes;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.DefaultHandler;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.HashSet;
+
 import java.util.Vector;
+import java.util.Random;
+
 public class TraceHVCTimestampingGargToken
 {
     //static int highest_C_seensofar=0;
@@ -22,7 +28,8 @@ public class TraceHVCTimestampingGargToken
     static int debugmode=0;
     static int msgmode=0;
     static int intervDropFreq=0;
-    static int msgDropFreq=0;
+    static int msgDropFreq=0;	
+    static String backslash="\\";
     public static void main(String[] args)
     {
         try
@@ -37,7 +44,12 @@ public class TraceHVCTimestampingGargToken
             msgDropFreq = Integer.parseInt(args[3]);
             inpfilename=args[4];
             outputLocation = args[5];
-            File inputFile = new File(inpfilename);
+            File inputFile = new File(inpfilename);			
+            if(System.getProperty("os.name").toLowerCase().indexOf("win") >= 0){
+                backslash="\\";
+            } else {
+                backslash="/";
+            }
             SAXParserFactory factory = SAXParserFactory.newInstance();
             SAXParser saxParser = factory.newSAXParser();
             UserHandler userhandler = new UserHandler();
@@ -63,7 +75,7 @@ class UserHandler extends DefaultHandler
     int sender_time=-1;// variable to remember sender time for message RECEIVE
     int senderid=-1;// variable to remember sender id for message RECEIVE
     SysAtHand sysathand=new SysAtHand();
-    String fromVtoEndStr = TraceHVCTimestampingGargToken.inpfilename.substring(TraceHVCTimestampingGargToken.inpfilename.indexOf('v')+1, TraceHVCTimestampingGargToken.inpfilename.lastIndexOf(".xml"));
+	String fromVtoEndStr = TraceHVCTimestampingGargToken.inpfilename.substring(TraceHVCTimestampingGargToken.inpfilename.indexOf('v')+1, TraceHVCTimestampingGargToken.inpfilename.lastIndexOf(".xml"));
     String intervalLengthStr=fromVtoEndStr.substring(0, fromVtoEndStr.indexOf('_'));
     Map<Integer, Process> mapofprocesses = new HashMap<Integer, Process>();//map of processes with process id as the key and Process instance as value
     int previous_window=-1;
@@ -72,12 +84,12 @@ class UserHandler extends DefaultHandler
     BufferedWriter bw2=null;
     //setting new-folder's name using the input trace-file's name
     String folderName = TraceHVCTimestampingGargToken.inpfilename.substring(TraceHVCTimestampingGargToken.inpfilename.lastIndexOf('/')+1, TraceHVCTimestampingGargToken.inpfilename.lastIndexOf(".xml"));
-    String nwfolder=TraceHVCTimestampingGargToken.outputLocation+"\\"+folderName; //input file name without file extension
+    String nwfolder=TraceHVCTimestampingGargToken.outputLocation+TraceHVCTimestampingGargToken.backslash+folderName; //input file name without file extension
     //file containing all hvc snapshots
-    String snapshot_outfile=nwfolder+"\\snapshots_hvc_msgmode"+TraceHVCTimestampingGargToken.msgmode+".txt";
+    String snapshot_outfile=nwfolder+TraceHVCTimestampingGargToken.backslash+"snapshots_hvc_msgmode"+TraceHVCTimestampingGargToken.msgmode+".txt";
     //file containing only snapshots that were counted
-    String snapshot_counted_outfile=nwfolder+"\\snapshots_counted_hvc"+TraceHVCTimestampingGargToken.msgmode+".txt";
-    String tokens_file = nwfolder+"\\Tokens_hvc.txt";
+    String snapshot_counted_outfile=nwfolder+TraceHVCTimestampingGargToken.backslash+"snapshots_counted_hvc"+TraceHVCTimestampingGargToken.msgmode+".txt";
+    String tokens_file = nwfolder+TraceHVCTimestampingGargToken.backslash+"Tokens_hvc.txt";
     @Override
     public void startElement(String uri, String localName, String qName, Attributes attributes) throws SAXException
     {
@@ -95,7 +107,19 @@ class UserHandler extends DefaultHandler
             //System.out.println("System: epsilon=" + eps + ", number_of_processes=" +nproc);
             sysathand.SetEpsilon(eps);
             sysathand.SetNumberOfProcesses(nproc);
-            sysathand.setInterval_length(Integer.parseInt(intervalLengthStr));
+			sysathand.setInterval_length(Integer.parseInt(intervalLengthStr));
+            //create nproc number of instances of class process and assign ids to them
+            for (int i=0; i<nproc; i++)
+            {
+                Vector<Integer> freshhvc=new Vector<Integer>(nproc);
+                for (int m=0; m<nproc; m++)
+                {
+                    freshhvc.add(0);
+                }
+                Process proc = new Process(i,freshhvc,0);
+                mapofprocesses.put(i,proc);
+
+            }
         }
         else if (qName.equalsIgnoreCase("sender_time"))
         {
@@ -148,7 +172,7 @@ class UserHandler extends DefaultHandler
                 }
                 if(proc.getAcceptInterval()==0 || proc.getOldPt()-proc.getLastAcceptedStartPt()< sysathand.getInterval_length()){
                     proc.newCandidateOccurance(oldhvc, currenthvc,proc.getOldPt(),proc.getPt());
-                    proc.setLastAcceptedStartPt(proc.getOldPt());//remember last accepted interval
+					proc.setLastAcceptedStartPt(proc.getOldPt());//remember last accepted interval
                     mapofprocesses.put(proc_id,proc);
                     proc.setAcceptInterval(TraceHVCTimestampingGargToken.intervDropFreq);
                 } else {
@@ -186,8 +210,10 @@ class UserHandler extends DefaultHandler
         else if(qName.equalsIgnoreCase("system_run"))
         {
             processHVCCandidates(mapofprocesses);
+
         }
     }
+
     @Override
     public void characters(char ch[], int start, int length) throws SAXException
     {
@@ -238,11 +264,10 @@ class UserHandler extends DefaultHandler
                     toss=false; //ignore the message
                     proc.setIgnoredMsgCnt(proc.getIgnoredMsgCnt()-1);
                 }
-            }
-            else {
+            } else {
                 toss=true; // every process receives every message from any other process
             }
-            if((proc_id!=senderid) && (toss))//based on senderid and on receiver-probability--- if in different msg distribution mode
+            if((proc_id!=senderid) && (toss))//based on senderid and on receiver-probability--- if in different msg distribution msgmode
             {
                 //get sender l,c by popping sender's dequeue
                 Process senderproc= mapofprocesses.get(senderid);
@@ -276,7 +301,7 @@ class UserHandler extends DefaultHandler
             }
             else
             {
-                if(proc_id!=senderid) // case where it chose to ignore msg based on probability OR due to cross group communication in the case of mode 1
+                if(proc_id!=senderid) // case where it chose to ignore msg based on probability OR due to cross group communication in the case of msgmode 1
                 {
                     // to pop corresponding sender info from its queue
                     Process senderproc= mapofprocesses.get(senderid);//get sender hvc by popping sender's dequeue
@@ -302,7 +327,7 @@ class UserHandler extends DefaultHandler
             //System.out.println("Interval end time: " + end_time);
             Process proc= mapofprocesses.get(proc_id);
             //no need to update clocks if bmisc because the clock was already updated at message send/recieve which actually caused this interval end point
-            //if(!bmisc)//uncommented to create a new timestamp for the next interval's start - to allow choosing the next interval as part of valid snapshot
+            //if(!bmisc)
             {
                 proc.updateClock(end_time,false,sysathand.GetNumberOfProcesses());
                 mapofprocesses.put(proc_id,proc);
@@ -346,7 +371,7 @@ class UserHandler extends DefaultHandler
                 token.setTokenOwner(passItOnTo);
                 continue;
             }
-            //if token is complete
+            //if token if complete
             //evaluate if representative of the current token-owner-process is concurrent with all others
             boolean valid = token.computeIfValidCandidate(tokOwner, sysathand.GetEpsilon());
             //if color is still red for the token-owner's representative - in this case ComputeIfOverlap would

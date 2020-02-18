@@ -131,8 +131,8 @@ class Token
         if(TraceHVCTimestampingGargToken.debugmode==1)
         {
             String folderName = TraceHVCTimestampingGargToken.inpfilename.substring(TraceHVCTimestampingGargToken.inpfilename.lastIndexOf('/')+1, TraceHVCTimestampingGargToken.inpfilename.lastIndexOf(".xml"));
-            String nwFolder=TraceHVCTimestampingGargToken.outputLocation+"\\"+folderName; //input file name without file extension
-            String tokens_file = nwFolder+"\\Tokens_hvc.txt";
+            String nwFolder=TraceHVCTimestampingGargToken.outputLocation+TraceHVCTimestampingGargToken.backslash+folderName; //input file name without file extension
+            String tokens_file = nwFolder+TraceHVCTimestampingGargToken.backslash+"Tokens_hvc.txt";
             //JUST PRINTING FOR DEBUGGING
             print(tokens_file);
         }

@@ -9,38 +9,50 @@ class Process
     int id;
     Vector<Integer> hvc;
     int pt;
+
     //variable to remember previous interval's end (current interval's start) when a message is received/sent
     Vector<Integer> prev_hvc;
     int prev_pt;
+
     //queue to remember interval-candidates
     Deque<Candidate> candQueue;
+
     //queue to remember l,c values corresponding to message sends
     Deque<MessageSendStruct> hvclog;
     int msg_counter;
+
     //boolean reported_interval_already;//variable to track first ever interval reported at a process
+
     int lastsendorrecorlocevntpt;//variable to check if multiple events -msg send/rcv or local event happened at the same instant --used to update prev(Old) pt,hvc only when the first event occurs at a specific physical time
-    //variables to help ignore true intervals at a specific frequency
-    int acceptInterval;
+
+    //variable to help ignore true intervals at a specific frequency
+    int acceptInterval;	
     int lastAcceptedStartPt;
     int lastIgnoredStartPt;
-    int ignoredMsgCnt;
+    int ignoredMsgCnt;	
     Process(int unique_id, Vector<Integer> proc_hvc, int phytime)
     {
         id=unique_id;
         hvc=proc_hvc;
         pt=phytime;
+
         msg_counter=0;
+
         prev_hvc=proc_hvc;//assuming that proc_hvc is also <0,0,...0,0>
+
         prev_pt=0;
         hvclog = new ArrayDeque<MessageSendStruct>();
         candQueue= new ArrayDeque<Candidate>();
+
         //reported_interval_already=false;
+
         lastsendorrecorlocevntpt=-1;
-        acceptInterval=0;
+		acceptInterval=0;		
         lastAcceptedStartPt=0;
         lastIgnoredStartPt=0;
-        ignoredMsgCnt=0;
+		ignoredMsgCnt=0;
     }
+
     void setId(int passed_id){id=passed_id;}
     void setHvc(Vector<Integer> passed_hvc){hvc=passed_hvc;}
     void setPt(int passed_pt){pt=passed_pt;}
@@ -48,19 +60,21 @@ class Process
     void setOldHvc(Vector<Integer> passed_hvc){prev_hvc=passed_hvc;}
     void setOldPt(int passed_pt){prev_pt=passed_pt;}
     void setAcceptInterval(int value){acceptInterval=value;}
-    void setLastAcceptedStartPt(int startPt){lastAcceptedStartPt=startPt;}
+	void setLastAcceptedStartPt(int startPt){lastAcceptedStartPt=startPt;}
     void setLastIgnoredStartPt(int startPt){lastIgnoredStartPt=startPt;}
-    void setIgnoredMsgCnt(int cnt){ignoredMsgCnt=cnt;}
+	void setIgnoredMsgCnt(int cnt){ignoredMsgCnt=cnt;}
     int getIgnoredMsgCnt(){return ignoredMsgCnt;}
-    int getLastIgnoredStartPt(){return lastIgnoredStartPt;}
+	int getLastIgnoredStartPt(){return lastIgnoredStartPt;}
     int getLastAcceptedStartPt(){return lastAcceptedStartPt;}
     int getAcceptInterval(){return acceptInterval;}
     int getId(){return id;}
     Vector<Integer> getHvc(){return hvc;}
     int getPt(){return pt;}
+
     Vector<Integer> getOldHvc(){return prev_hvc;}
     int getOldPt(){return prev_pt;}
     int getlastsendorrecorlocevntpt(){return lastsendorrecorlocevntpt;}
+
     int getCandQueueSize(){
         return  candQueue.size();
     }
@@ -70,8 +84,10 @@ class Process
     Candidate getFirstCandidate(){
         return  candQueue.pollFirst();
     }
+
     //boolean getReportedIntervalAlready(){return reported_interval_already;}
     //void setReportedIntervalAlready(){reported_interval_already=true;}
+
     void updateClock(int physicalTime, boolean sendmsg, int numofproc)
     {
         Vector<Integer> currenthvc=new Vector<Integer>(numofproc);
@@ -80,6 +96,7 @@ class Process
             //currenthvc.set(huj,getHvc().get(huj));
             currenthvc.add(getHvc().get(huj));
         }
+
         if(lastsendorrecorlocevntpt!=physicalTime)
         {
             setOldPt(getPt());
@@ -112,6 +129,7 @@ class Process
             MessageSendStruct newmsg= new MessageSendStruct(msg_counter++,getPt(),updatedhvc);
             hvclog.add(newmsg);
         }
+
         setlastsendorrecorlocevntpt(physicalTime);
     }
     MessageSendStruct getHVCfromQueue(int passed_phytime)
@@ -144,6 +162,7 @@ class Process
             return msgpthvc;
         }
     }
+
     //at a process	//-- it sees a new candidate
     void newCandidateOccurance(Vector<Integer> intervalstarthvc, Vector<Integer> intervalendhvc, int intervstart_pt, int intervend_pt)
     {
